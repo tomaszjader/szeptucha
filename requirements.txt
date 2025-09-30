@@ -1,0 +1,7 @@
+openai>=1.0.0
+pyaudio==0.2.11
+keyboard==0.13.5
+pyperclip==1.8.2
+pywin32==306
+pynput==1.7.6
+python-dotenv

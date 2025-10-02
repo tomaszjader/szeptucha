@@ -13,156 +13,236 @@ import tempfile
 from openai import OpenAI
 import io
 from dotenv import load_dotenv
-import tkinter as tk
-from tkinter import ttk
 import math
 import numpy as np
+import tkinter as tk
+
+import queue
+from collections import deque
 
 # Ładowanie zmiennych środowiskowych z pliku .env
 load_dotenv()
 
 class RecordingWindow:
-    def __init__(self):
+    def __init__(self, root: tk.Tk):
+        # Główny root Tk musi działać w głównym wątku
+        self.root = root
         self.window = None
         self.canvas = None
-        self.animation_running = False
+        self.visible = False
         self.animation_frame = 0
-        self.root = None
         self.audio_level = 0.0  # Poziom dźwięku (0.0 - 1.0)
-        self.audio_history = []  # Historia poziomów dźwięku
-        
+        self.audio_history = deque(maxlen=50)  # Historia poziomów dźwięku
+        self.width, self.height = 300, 120
+
+        # Kolejka do komunikacji między wątkami (show/hide z innych wątków)
+        self.command_queue = queue.Queue()
+        # Blokada dla bezpiecznego dostępu do danych audio
+        self.data_lock = threading.Lock()
+
+    def start(self):
+        """Uruchamia pętlę przetwarzania poleceń i animacji (wątku głównego Tk)."""
+        def tick():
+            # Przetwórz oczekujące polecenia (show/hide) z innych wątków
+            try:
+                while True:
+                    cmd = self.command_queue.get_nowait()
+                    if cmd == 'show':
+                        self._open_window()
+                    elif cmd == 'hide':
+                        self._close_window()
+            except queue.Empty:
+                pass
+
+            # Aktualizuj animację jeśli okno widoczne
+            if self.visible and self.canvas:
+                try:
+                    self._draw_wave_visualization(self.width, self.height)
+                    self.animation_frame += 1
+                except Exception:
+                    # Cicha obsługa błędów rysowania
+                    pass
+
+            # Harmonogram kolejnego odświeżenia
+            self.root.after(25, tick)
+
+        # Uruchom pierwsze wywołanie tick
+        self.root.after(25, tick)
+
     def show(self):
-        """Pokazuje okienko nagrywania"""
-        if self.window is not None:
-            return
-        
-        # Utwórz root window jeśli nie istnieje
-        if self.root is None:
-            self.root = tk.Tk()
-            self.root.withdraw()  # Ukryj główne okno
-            
-        self.window = tk.Toplevel(self.root)
-        self.window.title("Nagrywanie...")
-        self.window.geometry("200x80")
-        self.window.resizable(False, False)
-        
-        # Ustaw okno zawsze na wierzchu
-        self.window.attributes('-topmost', True)
-        
-        # Wyśrodkuj okno na ekranie
-        self.window.update_idletasks()
-        x = (self.window.winfo_screenwidth() // 2) - (200 // 2)
-        y = (self.window.winfo_screenheight() // 2) - (80 // 2)
-        self.window.geometry(f"200x80+{x}+{y}")
-        
-        # Dodaj etykietę
-        label = tk.Label(self.window, text="🎤 Nagrywanie...", font=("Arial", 12, "bold"))
-        label.pack(pady=5)
-        
-        # Dodaj canvas dla animacji fali
-        self.canvas = tk.Canvas(self.window, width=180, height=40, bg='white')
-        self.canvas.pack(pady=5)
-        
-        # Rozpocznij animację
-        self.animation_running = True
-        self.animate_wave()
-        
-        # Zapobiegnij zamknięciu okna przez użytkownika
-        self.window.protocol("WM_DELETE_WINDOW", lambda: None)
-        
-    def update_audio_level(self, audio_data):
-        """Aktualizuje poziom dźwięku na podstawie danych audio"""
-        try:
-            # Konwertuj dane audio na numpy array
-            audio_array = np.frombuffer(audio_data, dtype=np.int16)
-            
-            # Oblicz RMS (Root Mean Square) jako miarę głośności
-            rms = np.sqrt(np.mean(audio_array**2))
-            
-            # Normalizuj do zakresu 0.0 - 1.0
-            # Maksymalna wartość dla 16-bit audio to 32767
-            self.audio_level = min(rms / 5000.0, 1.0)  # Dzielimy przez 5000 dla lepszej czułości
-            
-            # Dodaj do historii (zachowaj tylko ostatnie 50 próbek)
-            self.audio_history.append(self.audio_level)
-            if len(self.audio_history) > 50:
-                self.audio_history.pop(0)
-                
-        except Exception as e:
-            # W przypadku błędu, ustaw poziom na 0
+        """Żąda wyświetlenia okna (bezpośrednie wywołanie z dowolnego wątku)."""
+        # Resetuj stan animacji
+        self.animation_frame = 0
+        with self.data_lock:
             self.audio_level = 0.0
-    
-    def animate_wave(self):
-        """Animuje falę dźwiękową reagującą na poziom dźwięku"""
-        if not self.animation_running or self.canvas is None:
-            return
-            
-        self.canvas.delete("all")
-        
-        # Parametry fali
-        width = 180
-        height = 40
-        center_y = height // 2
-        
-        # Użyj poziomu dźwięku do kontroli amplitudy fali
-        base_amplitude = 5 + (self.audio_level * 20)  # Amplituda od 5 do 25
-        
-        # Rysuj główną falę reagującą na dźwięk
-        points = []
-        for x in range(0, width, 2):
-            # Podstawowa fala z animacją
-            base_wave = math.sin((x + self.animation_frame * 3) * 0.1)
-            
-            # Dodaj wpływ poziomu dźwięku
-            audio_influence = self.audio_level * math.sin((x + self.animation_frame * 5) * 0.15)
-            
-            # Kombinuj obie fale
-            wave_height = base_amplitude * (base_wave + audio_influence * 0.5)
-            y = center_y + wave_height
-            points.extend([x, y])
-        
-        if len(points) >= 4:
-            # Kolor zależy od poziomu dźwięku
-            intensity = int(255 * (0.3 + self.audio_level * 0.7))
-            color = f"#{intensity:02x}0000"  # Od ciemnoczerwonego do jasnoczerwnego
-            self.canvas.create_line(points, fill=color, width=2, smooth=True)
-        
-        # Dodaj dodatkowe fale z historią dźwięku
-        if len(self.audio_history) > 10:
-            for i in range(min(3, len(self.audio_history) // 10)):
-                points2 = []
-                history_index = -(i + 1) * 10
-                if abs(history_index) <= len(self.audio_history):
-                    historical_level = self.audio_history[history_index]
-                    amplitude = 3 + (historical_level * 10)
-                    
-                    for x in range(0, width, 3):
-                        wave_height = amplitude * math.sin((x + self.animation_frame * 2 + i * 30) * 0.08)
-                        y = center_y + wave_height
-                        points2.extend([x, y])
-                    
-                    if len(points2) >= 4:
-                        alpha = 0.7 - (i * 0.2)
-                        intensity = int(255 * alpha * (0.3 + historical_level * 0.7))
-                        color = f"#{intensity:02x}{int(intensity * 0.3):02x}{int(intensity * 0.3):02x}"
-                        self.canvas.create_line(points2, fill=color, width=1, smooth=True)
-        
-        self.animation_frame += 1
-        
-        # Zaplanuj następną klatkę animacji
-        if self.window:
-            self.window.after(30, self.animate_wave)  # Szybsza animacja (30ms)
-    
+            self.audio_history.clear()
+        # Wyślij polecenie do kolejki
+        self.command_queue.put('show')
+
     def hide(self):
-        """Ukrywa okienko nagrywania"""
-        self.animation_running = False
-        if self.window is not None:
-            self.window.destroy()
+        """Żąda ukrycia okna (bezpośrednie wywołanie z dowolnego wątku)."""
+        self.command_queue.put('hide')
+
+    def _open_window(self):
+        if self.visible and self.window:
+            return
+        # Utwórz osobne okno jako Toplevel
+        self.window = tk.Toplevel(self.root)
+        self.window.title("🎤 Nagrywanie...")
+        # Wyśrodkuj okno na ekranie
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        x = (screen_width - self.width) // 2
+        y = (screen_height - self.height) // 2
+        self.window.geometry(f"{self.width}x{self.height}+{x}+{y}")
+        # Zawsze na wierzchu
+        try:
+            self.window.attributes('-topmost', True)
+        except Exception:
+            pass
+
+        # Canvas do rysowania
+        self.canvas = tk.Canvas(self.window, width=self.width, height=self.height, bg="#1e1e1e", highlightthickness=0)
+        self.canvas.pack()
+
+        # Obsługa zamknięcia
+        def on_close():
+            self.hide()
+        self.window.protocol("WM_DELETE_WINDOW", on_close)
+
+        self.visible = True
+
+    def _close_window(self):
+        if not self.visible:
+            return
+        try:
+            if self.window:
+                self.window.destroy()
+        except Exception:
+            pass
+        finally:
             self.window = None
             self.canvas = None
+            self.visible = False
+    
+    def _draw_wave_visualization(self, width, height):
+        """Rysuje wizualizację fali dźwiękowej (Tkinter Canvas)"""
+        # Wyczyść canvas
+        if not self.canvas:
+            return
+        self.canvas.delete("all")
+
+        # Tło i tekst
+        self.canvas.create_rectangle(0, 0, width, height, fill="#1e1e1e", outline="")
+        self.canvas.create_text(width // 2, 20, text="🎤 Nagrywanie...", fill="#ffffff", font=("Segoe UI", 12))
+
+        # Parametry fali
+        wave_area_height = 60
+        wave_y_start = 40
+        center_y = wave_y_start + wave_area_height // 2
+
+        # Użyj poziomu dźwięku do kontroli amplitudy fali
+        base_amplitude = 8 + (self.audio_level * 25)  # Amplituda od 8 do 33
+
+        # Główna fala reagująca na dźwięk
+        points = []
+        for x in range(0, width, 3):
+            base_wave = math.sin((x + self.animation_frame * 4) * 0.08)
+            audio_influence = self.audio_level * math.sin((x + self.animation_frame * 6) * 0.12)
+            wave_height = base_amplitude * (base_wave * 0.7 + audio_influence * 0.8)
+            y = center_y + wave_height
+            points.append((x, int(y)))
+
+        def rgb_to_hex(r, g, b):
+            return f"#{r:02x}{g:02x}{b:02x}"
+
+        if len(points) >= 2:
+            if self.audio_level < 0.3:
+                intensity = int(100 + 155 * (self.audio_level / 0.3))
+                color = (intensity//3, intensity//2, intensity)
+            elif self.audio_level < 0.7:
+                progress = (self.audio_level - 0.3) / 0.4
+                blue = int(255 * (1 - progress))
+                green = 255
+                red = int(100 * progress)
+                color = (red, green, blue)
+            else:
+                progress = (self.audio_level - 0.7) / 0.3
+                red = int(100 + 155 * progress)
+                green = 255
+                blue = int(50 * (1 - progress))
+                color = (red, green, blue)
+
+            # Rysuj główną falę
+            for i in range(len(points) - 1):
+                x1, y1 = points[i]
+                x2, y2 = points[i+1]
+                self.canvas.create_line(x1, y1, x2, y2, fill=rgb_to_hex(*color), width=3)
+
+        # Dodatkowe fale z historii
+        if len(self.audio_history) > 5:
+            for i in range(min(3, len(self.audio_history) // 8)):
+                points2 = []
+                history_index = -(i + 1) * 8
+                if abs(history_index) <= len(self.audio_history):
+                    historical_level = self.audio_history[history_index]
+                    amplitude = 4 + (historical_level * 15)
+                    for x in range(0, width, 6):
+                        wave_height = amplitude * math.sin((x + self.animation_frame * 2 + i * 45) * 0.06)
+                        y = center_y + wave_height
+                        points2.append((x, int(y)))
+                    if len(points2) >= 2:
+                        alpha = 0.6 - (i * 0.15)
+                        base_intensity = int(150 * alpha * (0.4 + historical_level * 0.6))
+                        if historical_level < 0.5:
+                            color2 = (base_intensity//4, base_intensity//2, base_intensity)
+                        else:
+                            color2 = (base_intensity//2, base_intensity, base_intensity//3)
+                        for j in range(len(points2) - 1):
+                            x1, y1 = points2[j]
+                            x2, y2 = points2[j+1]
+                            self.canvas.create_line(x1, y1, x2, y2, fill=rgb_to_hex(*color2), width=2)
+
+        # Linie poziome dla efektu
+        for i in range(3):
+            y_pos = center_y + (i - 1) * 15
+            opacity = int(40 + 30 * self.audio_level)
+            line_color = (opacity//2, opacity, opacity//2)
+            self.canvas.create_line(20, y_pos, width-20, y_pos, fill=rgb_to_hex(*line_color), width=1)
+    
+    def update_audio_level(self, audio_data):
+        """Aktualizuje poziom dźwięku na podstawie danych audio"""
+        with self.data_lock:
+            try:
+                # Konwertuj dane audio na numpy array
+                audio_array = np.frombuffer(audio_data, dtype=np.int16)
+                
+                # Oblicz RMS (Root Mean Square) jako miarę głośności
+                rms = np.sqrt(np.mean(audio_array**2))
+                
+                # Normalizuj do zakresu 0.0 - 1.0 i wygładź
+                normalized_level = min(rms / 32767.0, 1.0)
+                self.audio_level = (self.audio_level * 0.7) + (normalized_level * 0.3)
+                
+                # Dodaj do historii
+                self.audio_history.append(self.audio_level)
+                    
+            except Exception as e:
+                # W przypadku błędu, ustaw poziom na 0 (bez wypisywania błędu)
+                self.audio_level = 0.0
+    
+    def hide(self):
+        """Wysyła polecenie ukrycia okna do kolejki bez blokowania (duplikat)."""
+        # Ujednolicenie zachowania: nie sprawdzamy już atrybutu 'running'.
+        # Polecenie zostanie przetworzone w głównym wątku Tk.
+        self.command_queue.put('hide')
+    
+    def _safe_close(self):
+        """Zachowane dla kompatybilności (nieużywane po przeniesieniu na Toplevel)."""
+        self._close_window()
 
 class VoiceNotes:
-    def __init__(self):
+    def __init__(self, root: tk.Tk):
         # Inicjalizacja OpenAI klienta
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
@@ -183,20 +263,28 @@ class VoiceNotes:
         self.recording_thread = None
         self.hotkey_listener = None
         self.frames = []
+        self.last_toggle_ts = 0.0  # Debounce dla skrótu
         
-        # Inicjalizacja okienka nagrywania
-        self.recording_window = RecordingWindow()
+        # Inicjalizacja okienka nagrywania (na głównym wątku Tk)
+        self.recording_window = RecordingWindow(root)
         
         print("✅ OpenAI Whisper API skonfigurowane pomyślnie!")
         
     def start_recording(self):
         """Rozpoczyna nagrywanie dźwięku"""
         if self.is_recording:
+            print("⚠️ Nagrywanie już trwa!")
             return
             
+        # Upewnij się, że poprzedni wątek nagrywania został zakończony
+        if self.recording_thread and self.recording_thread.is_alive():
+            print("⚠️ Czekam na zakończenie poprzedniego nagrywania...")
+            self.recording_thread.join(timeout=3)
+            
         self.is_recording = True
+        self.frames = []  # Wyczyść poprzednie dane audio
         print("\n🎤 NAGRYWANIE ROZPOCZĘTE - mów teraz...")
-        print("Naciśnij ponownie Windows+Ctrl aby zatrzymać nagrywanie")
+        print("Naciśnij ponownie Ctrl+Alt aby zatrzymać nagrywanie")
         
         # Pokaż okienko nagrywania
         self.recording_window.show()
@@ -208,6 +296,7 @@ class VoiceNotes:
     def stop_recording(self):
         """Zatrzymuje nagrywanie dźwięku"""
         if not self.is_recording:
+            print("⚠️ Nagrywanie nie jest aktywne!")
             return
             
         self.is_recording = False
@@ -216,8 +305,12 @@ class VoiceNotes:
         # Ukryj okienko nagrywania
         self.recording_window.hide()
         
-        if self.recording_thread:
-            self.recording_thread.join(timeout=2)
+        # Poczekaj na zakończenie wątku nagrywania
+        if self.recording_thread and self.recording_thread.is_alive():
+            self.recording_thread.join(timeout=5)
+            
+        # Wyczyść referencję do wątku
+        self.recording_thread = None
     
     def _record_audio(self):
         """Nagrywa dźwięk i konwertuje na tekst używając OpenAI Whisper"""
@@ -288,6 +381,8 @@ class VoiceNotes:
             print(f"❌ Błąd podczas nagrywania: {e}")
         finally:
             self.is_recording = False
+            # Ukryj okienko nagrywania w przypadku błędu
+            self.recording_window.hide()
     
     def _process_recognized_text(self, text):
         """Przetwarza rozpoznany tekst"""
@@ -302,7 +397,22 @@ class VoiceNotes:
             # Kopiuj do schowka i wklej
             pyperclip.copy(text)
             time.sleep(0.1)  # Krótka pauza
-            keyboard.send('ctrl+v')
+            # Wklejanie w osobnym wątku, aby uniknąć blokowania
+            def _paste_async():
+                try:
+                    controller = pynput_keyboard.Controller()
+                    controller.press(pynput_keyboard.Key.ctrl)
+                    controller.press('v')
+                    controller.release('v')
+                    controller.release(pynput_keyboard.Key.ctrl)
+                except Exception:
+                    # Fallback do biblioteki keyboard, jeśli dostępna
+                    try:
+                        import keyboard as kb
+                        kb.send('ctrl+v')
+                    except Exception:
+                        pass
+            threading.Thread(target=_paste_async, daemon=True).start()
         else:
             print("💬 Tekst wyświetlony w terminalu")
     
@@ -345,29 +455,34 @@ class VoiceNotes:
             self.start_recording()
     
     def setup_hotkey(self):
-        """Konfiguruje globalny skrót klawiszowy Windows+Ctrl"""
+        """Konfiguruje globalny skrót klawiszowy Ctrl+Alt"""
         def on_hotkey():
+            # Debounce, żeby uniknąć podwójnych wywołań
+            now = time.time()
+            if (now - self.last_toggle_ts) < 0.7:
+                return
+            self.last_toggle_ts = now
             self.toggle_recording()
-        
+
         try:
-            # Kombinacja Windows + Ctrl
+            # Użyj pynput GlobalHotKeys dla Ctrl+Alt
             self.hotkey_listener = pynput_keyboard.GlobalHotKeys({
-                '<cmd>+<ctrl>': on_hotkey
+                '<ctrl>+<alt>': on_hotkey
             })
             self.hotkey_listener.start()
-            print("🔥 Skrót klawiszowy Windows+Ctrl został aktywowany!")
+            print("🔥 Skrót klawiszowy Ctrl+Alt został aktywowany!")
             return True
         except Exception as e:
             print(f"❌ Błąd podczas konfiguracji skrótu klawiszowego: {e}")
             return False
     
     def run(self):
-        """Uruchamia aplikację"""
+        """Uruchamia aplikację (nie blokuje wątku głównego Tk)."""
         print("=" * 60)
         print("🎙️  NOTATNIK GŁOSOWY - OpenAI Whisper")
         print("=" * 60)
         print("📋 Instrukcje:")
-        print("• Naciśnij Windows+Ctrl aby rozpocząć/zatrzymać nagrywanie")
+        print("• Naciśnij Ctrl+Alt aby rozpocząć/zatrzymać nagrywanie")
         print("• Mów wyraźnie po polsku")
         print("• Tekst zostanie wyświetlony w terminalu")
         print("• Jeśli aktywne jest pole tekstowe, tekst zostanie wklejony")
@@ -378,29 +493,41 @@ class VoiceNotes:
         if not self.setup_hotkey():
             print("❌ Nie udało się skonfigurować skrótu klawiszowego")
             return
-        
-        try:
-            print("✅ Aplikacja działa! Oczekiwanie na skrót klawiszowy...")
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n👋 Zamykanie aplikacji...")
-            if self.hotkey_listener:
-                self.hotkey_listener.stop()
-            if self.is_recording:
-                self.stop_recording()
-            # Zamknij okienko nagrywania jeśli jest otwarte
-            self.recording_window.hide()
-            self.audio.terminate()
+        # Uruchom pętlę animacji/komend okienka
+        self.recording_window.start()
+        print("✅ Aplikacja działa! Oczekiwanie na skrót klawiszowy...")
 
 def main():
     """Funkcja główna"""
+    # Główny root Tk musi być utworzony w głównym wątku
+    root = tk.Tk()
+    # Ukryj główne okno (używamy tylko Toplevel do nagrywania)
     try:
-        app = VoiceNotes()
+        root.withdraw()
+    except Exception:
+        pass
+
+    try:
+        app = VoiceNotes(root)
         app.run()
+        # Pętla główna Tkinter (blokuje do zamknięcia)
+        root.mainloop()
+    except KeyboardInterrupt:
+        print("\n👋 Zamykanie aplikacji...")
+        if app.hotkey_listener:
+            app.hotkey_listener.stop()
+        if app.is_recording:
+            app.stop_recording()
+        app.recording_window.hide()
     except Exception as e:
         print(f"❌ Błąd krytyczny: {e}")
         input("Naciśnij Enter aby zakończyć...")
+    finally:
+        # Zwolnij zasoby audio
+        try:
+            app.audio.terminate()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()

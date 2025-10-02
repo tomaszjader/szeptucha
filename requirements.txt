@@ -5,3 +5,5 @@ pyperclip==1.8.2
 pywin32==306
 pynput==1.7.6
 python-dotenv
+pygame>=2.5.0
+numpy>=1.24.0

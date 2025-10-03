@@ -1,138 +1,151 @@
-# 🎙️ Notatnik Głosowy - OpenAI Whisper
+# Voice Notes - Notatnik Głosowy
 
-Aplikacja do tworzenia notatek głosowych z globalnym skrótem klawiszowym Windows + Ctrl. Nagrywa dźwięk, konwertuje na tekst używając **OpenAI Whisper API** i automatycznie wkleja w aktywnym polu tekstowym lub wyświetla w terminalu.
+Aplikacja do nagrywania głosu i automatycznej transkrypcji za pomocą OpenAI Whisper API.
 
-## ✨ Funkcjonalności
+## 🚀 Nowe funkcje w wersji 2.0
 
-- 🔥 **Globalny skrót klawiszowy**: Windows + Ctrl
-- 🎤 **Nagrywanie dźwięku** z mikrofonu
-- 🤖 **OpenAI Whisper API** - najlepsza jakość rozpoznawania mowy
-- 🗣️ **Rozpoznawanie mowy** w języku polskim
-- 📝 **Automatyczne wklejanie** tekstu w aktywnych polach tekstowych
-- 💬 **Wyświetlanie tekstu** w terminalu
-- 🔄 **Toggle nagrywania** - ten sam skrót rozpoczyna i zatrzymuje
+- **Zrefaktoryzowana architektura** - kod podzielony na logiczne moduły
+- **Lepsza organizacja kodu** - każdy komponent w osobnym pliku
+- **Łatwiejsze utrzymanie** - czytelna struktura i separacja odpowiedzialności
+- **Rozszerzalność** - łatwe dodawanie nowych funkcji
 
-## 📋 Wymagania
+## 📁 Struktura projektu
 
-- Windows 10/11
-- Python 3.7+
-- Mikrofon
-- **Klucz API OpenAI** (wymagany!)
-- Połączenie internetowe
+```
+szeptucha/
+├── main.py                    # Główny plik uruchamiający aplikację
+├── voice_notes_app.py         # Główna klasa aplikacji
+├── config.py                  # Konfiguracja aplikacji
+├── audio_recorder.py          # Moduł nagrywania audio
+├── recording_window.py        # Interfejs okna nagrywania
+├── transcription_service.py   # Integracja z OpenAI Whisper
+├── hotkey_manager.py          # Zarządzanie skrótami klawiszowymi
+├── text_processor.py          # Przetwarzanie i wklejanie tekstu
+├── voice_notes_original.py    # Oryginalna wersja (backup)
+├── requirements.txt           # Zależności Python
+├── .env                       # Zmienne środowiskowe (utwórz ręcznie)
+└── README.md                  # Ten plik
+```
 
-## 🔑 Konfiguracja OpenAI API
+## 🛠️ Instalacja
 
-1. **Uzyskaj klucz API**:
-   - Przejdź na https://platform.openai.com/api-keys
-   - Zaloguj się lub utwórz konto
-   - Wygeneruj nowy klucz API
+1. **Sklonuj repozytorium lub pobierz pliki**
 
-2. **Ustaw zmienną środowiskową**:
-   ```bash
-   # Windows PowerShell
-   $env:OPENAI_API_KEY="twój-klucz-api"
-   
-   # Lub dodaj na stałe w systemie Windows:
-   # Ustawienia > System > Informacje > Zaawansowane ustawienia systemu > Zmienne środowiskowe
-   ```
-
-## 🚀 Instalacja
-
-1. **Sklonuj lub pobierz pliki**:
-   ```bash
-   git clone <repository-url>
-   cd szeptucha
-   ```
-
-2. **Zainstaluj zależności**:
+2. **Zainstaluj zależności:**
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Skonfiguruj klucz API OpenAI:**
    
-   **Opcja 1: Plik .env (zalecane)**
-   - Otwórz plik `.env` w folderze projektu
-   - Wklej swój klucz API OpenAI:
+   Utwórz plik `.env` w katalogu głównym:
    ```
-   OPENAI_API_KEY=sk-proj-twój-klucz-api-tutaj
+   OPENAI_API_KEY=twój_klucz_api_tutaj
    ```
    
-   **Opcja 2: Zmienna środowiskowa**
-   ```powershell
-   # W PowerShell:
-   $env:OPENAI_API_KEY="twój-klucz-api-openai"
-   ```
-
-4. **Uzyskaj klucz API OpenAI:**
-   - Idź na https://platform.openai.com/api-keys
-   - Zaloguj się lub utwórz konto
-   - Wygeneruj nowy klucz API
-   - Upewnij się, że masz środki na koncie (API jest płatne)
-
-5. **Uruchom aplikację**:
+   Lub ustaw zmienną środowiskową:
    ```bash
-   python voice_notes.py
+   set OPENAI_API_KEY=twój_klucz_api_tutaj
    ```
 
-## 🎯 Jak używać
+## 🎯 Użytkowanie
 
-1. **Uruchom aplikację** - pojawi się komunikat o gotowości
-2. **Naciśnij Windows + Ctrl** aby rozpocząć nagrywanie
-3. **Mów wyraźnie** po polsku
-4. **Naciśnij ponownie Windows + Ctrl** aby zatrzymać nagrywanie
-5. **Tekst zostanie**:
-   - Wklejony automatycznie jeśli aktywne jest pole tekstowe
-   - Wyświetlony w terminalu w przeciwnym przypadku
+### Uruchomienie aplikacji
 
-## 🔧 Rozwiązywanie problemów
+```bash
+python main.py
+```
 
-### Błąd instalacji PyAudio
-Jeśli wystąpi problem z instalacją PyAudio:
+### Podstawowe funkcje
+
+- **Ctrl+Alt** - rozpocznij/zatrzymaj nagrywanie
+- Mów wyraźnie po polsku
+- Tekst zostanie automatycznie wklejony do aktywnego pola tekstowego
+- Jeśli nie ma aktywnego pola, tekst zostanie wyświetlony w terminalu
+
+## 🏗️ Architektura
+
+### Moduły aplikacji
+
+1. **`config.py`** - Centralna konfiguracja aplikacji
+2. **`audio_recorder.py`** - Obsługa nagrywania dźwięku
+3. **`recording_window.py`** - Wizualne okno z animacją podczas nagrywania
+4. **`transcription_service.py`** - Integracja z OpenAI Whisper API
+5. **`hotkey_manager.py`** - Globalne skróty klawiszowe
+6. **`text_processor.py`** - Wykrywanie pól tekstowych i wklejanie
+7. **`voice_notes_app.py`** - Główna logika aplikacji
+8. **`main.py`** - Punkt wejścia aplikacji
+
+### Zalety nowej architektury
+
+- **Separacja odpowiedzialności** - każdy moduł ma jasno określoną rolę
+- **Łatwość testowania** - komponenty można testować niezależnie
+- **Możliwość rozszerzania** - łatwe dodawanie nowych funkcji
+- **Czytelność kodu** - mniejsze, bardziej zrozumiałe pliki
+- **Ponowne wykorzystanie** - moduły można używać w innych projektach
+
+## 🔧 Konfiguracja
+
+Wszystkie ustawienia znajdują się w pliku `config.py`:
+
+- Parametry audio (częstotliwość, kanały, itp.)
+- Ustawienia okna nagrywania
+- Konfiguracja skrótów klawiszowych
+- Kolory i animacje
+
+## 🚨 Wymagania systemowe
+
+- **Python 3.7+**
+- **Windows** (ze względu na biblioteki win32)
+- **Mikrofon** do nagrywania
+- **Klucz API OpenAI** z dostępem do Whisper
+
+## 📝 Zmiany w wersji 2.0
+
+### Refaktoryzacja
+
+- Podzielono monolityczny plik na 8 modułów
+- Wprowadzono centralną konfigurację
+- Poprawiono obsługę błędów
+- Dodano dokumentację kodu
+
+### Nowe funkcje
+
+- Lepsze wykrywanie pól tekstowych
+- Ulepszona wizualizacja nagrywania
+- Bardziej niezawodne skróty klawiszowe
+- Lepsze zarządzanie zasobami
+
+## 🐛 Rozwiązywanie problemów
+
+### Błędy instalacji
+
+Jeśli masz problemy z instalacją `pyaudio`:
 ```bash
 pip install pipwin
 pipwin install pyaudio
 ```
 
-### Problemy z mikrofonem
-- Sprawdź czy mikrofon jest podłączony i działa
-- Upewnij się że aplikacja ma dostęp do mikrofonu w ustawieniach Windows
+### Problemy z kluczem API
 
-### Problemy ze skrótem klawiszowym
-- Uruchom aplikację jako administrator
-- Sprawdź czy inny program nie używa tego samego skrótu
+Upewnij się, że:
+- Klucz API jest poprawny
+- Masz dostęp do Whisper API
+- Plik `.env` jest w głównym katalogu
 
-### Błędy rozpoznawania mowy
-- Sprawdź połączenie internetowe
-- Upewnij się że klucz API OpenAI jest poprawny
-- Sprawdź czy masz wystarczające środki na koncie OpenAI
-- Mów wyraźnie i w odpowiedniej odległości od mikrofonu
-- Aplikacja używa OpenAI Whisper API - najlepsze dostępne rozpoznawanie mowy
+### Problemy ze skrótami klawiszowymi
 
-## 📁 Struktura plików
+- Uruchom jako administrator jeśli to konieczne
+- Sprawdź czy inne aplikacje nie używają tego samego skrótu
 
-```
-szeptucha/
-├── voice_notes.py      # Główny plik aplikacji
-├── requirements.txt    # Zależności Python
-└── README.md          # Ten plik
-```
-
-## 🛠️ Technologie
-
-- **OpenAI Whisper API** - najlepsze rozpoznawanie mowy
-- **PyAudio** - nagrywanie dźwięku
-- **pynput** - globalne skróty klawiszowe
-- **pyperclip** - operacje na schowku
-- **pywin32** - integracja z Windows API
-
-## 📝 Licencja
+## 📄 Licencja
 
 Ten projekt jest dostępny na licencji MIT.
 
-## 🤝 Wsparcie
+## 🤝 Wkład w projekt
 
-Jeśli napotkasz problemy lub masz sugestie, utwórz issue w repozytorium.
+Zachęcamy do zgłaszania błędów i propozycji ulepszeń!
 
 ---
-**Uwaga**: Aplikacja wymaga klucza API OpenAI i połączenia internetowego do działania funkcji rozpoznawania mowy. OpenAI Whisper zapewnia znacznie lepszą jakość rozpoznawania niż darmowe alternatywy.
+
+**Wersja 2.0** - Zrefaktoryzowana architektura dla lepszej organizacji kodu

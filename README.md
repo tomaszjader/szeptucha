@@ -1,5 +1,7 @@
 # Voice Notes - Notatnik Głosowy
 
+**[🇵🇱 Polski](README.md) | [🇺🇸 English](README.en.md)**
+
 Aplikacja do nagrywania głosu i automatycznej transkrypcji za pomocą OpenAI Whisper API.
 
 ## 🚀 Nowe funkcje w wersji 2.0

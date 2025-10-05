@@ -47,9 +47,6 @@ class TranscriptionService:
             text = transcript.text.strip()
             
             if text:
-                print(f"\n📝 ROZPOZNANY TEKST:")
-                print(f"'{text}'")
-                print("-" * 50)
                 return text
             else:
                 print("❌ Nie rozpoznano żadnego tekstu")
@@ -87,9 +84,6 @@ class TranscriptionService:
             text = transcript.text.strip()
             
             if text:
-                print(f"\n📝 ROZPOZNANY TEKST:")
-                print(f"'{text}'")
-                print("-" * 50)
                 return text
             else:
                 print("❌ Nie rozpoznano żadnego tekstu")

@@ -2,7 +2,7 @@
 
 **[🇵🇱 Polski](README.md) | [🇺🇸 English](README.en.md)**
 
-An application for voice recording and automatic transcription using OpenAI Whisper API.
+An application for voice recording and automatic transcription using OpenAI Whisper API or a local faster-whisper model (automatic selection).
 
 ## 🚀 New features in version 2.0
 
@@ -20,7 +20,7 @@ szeptucha/
 ├── config.py                  # Application configuration
 ├── audio_recorder.py          # Audio recording module
 ├── recording_window.py        # Recording window interface
-├── transcription_service.py   # OpenAI Whisper integration
+├── transcription_service.py   # OpenAI Whisper API and local faster-whisper integration
 ├── hotkey_manager.py          # Keyboard shortcuts management
 ├── text_processor.py          # Text processing and pasting
 ├── voice_notes_original.py    # Original version (backup)
@@ -38,16 +38,22 @@ szeptucha/
    pip install -r requirements.txt
    ```
 
-3. **Configure OpenAI API key:**
-   
-   Create a `.env` file in the root directory:
+3. **Transcription mode configuration:**
+
+   By default, the app runs in `auto` mode — if `OPENAI_API_KEY` is detected, it will use the OpenAI API; otherwise, it will run a local model.
+
+   Create a `.env` file in the root directory (optional):
    ```
+   # API key (optional in auto or local mode)
    OPENAI_API_KEY=your_api_key_here
-   ```
-   
-   Or set environment variable:
-   ```bash
-   set OPENAI_API_KEY=your_api_key_here
+
+   # Forced mode: auto | api | local
+   TRANSCRIPTION_MODE=auto
+
+   # Local model settings (for local/auto)
+   LOCAL_WHISPER_MODEL=base  # e.g., tiny, base, small, medium, large-v2
+   LOCAL_DEVICE=cpu          # cpu or cuda
+   LOCAL_COMPUTE_TYPE=int8   # e.g., int8, float32
    ```
 
 ## 🎯 Usage
@@ -100,7 +106,8 @@ All settings are located in the `config.py` file:
 - **Python 3.7+**
 - **Windows** (due to win32 libraries)
 - **Microphone** for recording
-- **OpenAI API key** with Whisper access
+- For local mode, the `faster-whisper` package is required (added to `requirements.txt`). For better GPU performance, a proper CUDA environment is needed.
+- For API mode, an **OpenAI API key** with Whisper access is required
 
 ## 📝 Changes in version 2.0
 

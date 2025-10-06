@@ -128,7 +128,7 @@ class VoiceNotesApp:
     def run(self):
         """Uruchamia aplikację"""
         print("=" * 60)
-        print("🎙️  NOTATNIK GŁOSOWY - OpenAI Whisper")
+        print("🎙️  NOTATNIK GŁOSOWY - Whisper (API lub lokalnie)")
         print("=" * 60)
         print("📋 Instrukcje:")
         print("• Naciśnij Ctrl+Alt aby rozpocząć/zatrzymać nagrywanie")
@@ -136,8 +136,15 @@ class VoiceNotesApp:
         print("• Tekst zostanie wyświetlony w terminalu")
         print("• Jeśli aktywne jest pole tekstowe, tekst zostanie wklejony")
         print("• Naciśnij Ctrl+C aby zakończyć program")
-        print("• Używa OpenAI Whisper API dla najlepszej jakości rozpoznawania")
+        print("• Używa OpenAI Whisper API lub lokalnego modelu (automatyczny wybór)")
         print("=" * 60)
+        # Informacja o trybie jeśli dostępna
+        try:
+            mode = getattr(self.transcription_service, 'mode', None)
+            if mode:
+                print(f"🔧 Wybrany tryb transkrypcji: {mode}")
+        except Exception:
+            pass
         
         if not self.setup_hotkey():
             print("❌ Nie udało się skonfigurować skrótu klawiszowego")

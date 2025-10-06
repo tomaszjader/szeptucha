@@ -12,6 +12,12 @@ class Config:
     
     # OpenAI API
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    # Tryb transkrypcji: 'auto' (domyślnie), 'api', 'local'
+    TRANSCRIPTION_MODE = os.getenv('TRANSCRIPTION_MODE', 'auto').lower()
+    # Ustawienia lokalnego modelu Whisper (dla 'local' lub fallback w 'auto')
+    LOCAL_WHISPER_MODEL = os.getenv('LOCAL_WHISPER_MODEL', 'base')
+    LOCAL_DEVICE = os.getenv('LOCAL_DEVICE', 'cpu')  # 'cpu' lub 'cuda'
+    LOCAL_COMPUTE_TYPE = os.getenv('LOCAL_COMPUTE_TYPE', 'int8')  # np. 'int8', 'float32'
     
     # Konfiguracja audio
     AUDIO_CHUNK = 1024
@@ -35,6 +41,8 @@ class Config:
     @classmethod
     def validate(cls):
         """Waliduje konfigurację"""
-        if not cls.OPENAI_API_KEY:
-            raise ValueError("Nie znaleziono klucza API OpenAI! Ustaw zmienną środowiskową OPENAI_API_KEY lub dodaj plik .env")
+        # Jeśli wymuszony tryb API, wymagaj klucza
+        if cls.TRANSCRIPTION_MODE == 'api' and not cls.OPENAI_API_KEY:
+            raise ValueError("Brak klucza API OpenAI w trybie 'api'. Ustaw OPENAI_API_KEY lub zmień TRANSCRIPTION_MODE na 'local' lub 'auto'.")
+        # W trybie 'local' lub 'auto' bez klucza — akceptujemy konfigurację
         return True

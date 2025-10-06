@@ -2,7 +2,7 @@
 
 **[🇵🇱 Polski](README.md) | [🇺🇸 English](README.en.md)**
 
-Aplikacja do nagrywania głosu i automatycznej transkrypcji za pomocą OpenAI Whisper API.
+Aplikacja do nagrywania głosu i automatycznej transkrypcji za pomocą OpenAI Whisper API lub lokalnego modelu faster-whisper (automatyczny wybór).
 
 ## 🚀 Nowe funkcje w wersji 2.0
 
@@ -20,7 +20,7 @@ szeptucha/
 ├── config.py                  # Konfiguracja aplikacji
 ├── audio_recorder.py          # Moduł nagrywania audio
 ├── recording_window.py        # Interfejs okna nagrywania
-├── transcription_service.py   # Integracja z OpenAI Whisper
+├── transcription_service.py   # Integracja z OpenAI Whisper API i lokalnym faster-whisper
 ├── hotkey_manager.py          # Zarządzanie skrótami klawiszowymi
 ├── text_processor.py          # Przetwarzanie i wklejanie tekstu
 ├── voice_notes_original.py    # Oryginalna wersja (backup)
@@ -38,16 +38,22 @@ szeptucha/
    pip install -r requirements.txt
    ```
 
-3. **Skonfiguruj klucz API OpenAI:**
-   
-   Utwórz plik `.env` w katalogu głównym:
+3. **Konfiguracja trybu transkrypcji:**
+
+   Domyślnie aplikacja działa w trybie `auto` — jeśli wykryje `OPENAI_API_KEY`, użyje API OpenAI; w przeciwnym razie uruchomi lokalny model.
+
+   Utwórz plik `.env` w katalogu głównym (opcjonalnie):
    ```
+   # Klucz API (opcjonalny w trybie auto lub local)
    OPENAI_API_KEY=twój_klucz_api_tutaj
-   ```
-   
-   Lub ustaw zmienną środowiskową:
-   ```bash
-   set OPENAI_API_KEY=twój_klucz_api_tutaj
+
+   # Wymuszony tryb: auto | api | local
+   TRANSCRIPTION_MODE=auto
+
+   # Ustawienia lokalnego modelu (dla trybu local/auto)
+   LOCAL_WHISPER_MODEL=base  # np. tiny, base, small, medium, large-v2
+   LOCAL_DEVICE=cpu          # cpu lub cuda
+   LOCAL_COMPUTE_TYPE=int8   # np. int8, float32
    ```
 
 ## 🎯 Użytkowanie
@@ -100,7 +106,8 @@ Wszystkie ustawienia znajdują się w pliku `config.py`:
 - **Python 3.7+**
 - **Windows** (ze względu na biblioteki win32)
 - **Mikrofon** do nagrywania
-- **Klucz API OpenAI** z dostępem do Whisper
+- W trybie lokalnym wymagany jest pakiet `faster-whisper` (dodany do `requirements.txt`). Dla lepszej wydajności na GPU konieczna jest konfiguracja środowiska CUDA.
+- W trybie API wymagany jest **klucz API OpenAI** z dostępem do Whisper
 
 ## 📝 Zmiany w wersji 2.0
 

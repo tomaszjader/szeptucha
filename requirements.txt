@@ -7,3 +7,4 @@ pynput==1.7.6
 python-dotenv
 pygame>=2.5.0
 numpy>=1.24.0
+faster-whisper>=0.10.0

@@ -135,6 +135,15 @@ pip install pipwin
 pipwin install pyaudio
 ```
 
+#### Problemy z uprawnieniami / instalacją na Windows
+
+- Jeśli podczas instalacji `faster-whisper` pojawia się błąd typu „Could not install packages due to an OSError” lub komunikat o `pyav.exe.deleteme`, spróbuj:
+  - `python -m pip install --user --no-warn-script-location --no-cache-dir "faster-whisper>=0.10.0"`
+  - Uruchomić PowerShell jako administrator.
+  - Upewnić się, że używasz `python -m pip` zamiast samego `pip`.
+- Szybkie sprawdzenie lokalnego modelu:
+  - `python -c "from faster_whisper import WhisperModel; print('OK')"`
+
 ### Problemy z kluczem API
 
 Upewnij się, że:
